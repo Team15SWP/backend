@@ -7,6 +7,7 @@ import (
 
 	"study_buddy/internal/config"
 	"study_buddy/internal/model"
+	"study_buddy/pkg/constants"
 	"study_buddy/pkg/llm"
 )
 
@@ -31,20 +32,22 @@ func NewTaskService(repo TaskProvider, statsRepo StatsProvider, llmClient llm.Cl
 }
 
 type Service interface {
-	GenerateTask(ctx context.Context, userId int64, topic, difficulty string) (*model.GeneratedTask, error)
-	EvaluateCodeForTask(ctx context.Context, task, code string) (*Question, error)
+	GenerateTask(ctx context.Context, userId int64, topic, difficulty string) (*model.Task, error)
+	EvaluateCodeForTask(ctx context.Context, userId int64, task, code string) (*model.Feedback, error)
 	GetStatistics(ctx context.Context, userId int64) (*model.Statistics, error)
 }
 
 type TaskProvider interface {
 	CreateTask(ctx context.Context, task *model.GeneratedTask) error
+	GetTask(ctx context.Context, userId int64, taskName string) (*model.GeneratedTask, error)
+	UpdateTaskSolved(ctx context.Context, task *model.GeneratedTask, stats *model.Statistics) error
 }
 
 type StatsProvider interface {
 	GetStatisticsData(ctx context.Context, userId int64) (*model.Statistics, error)
 }
 
-func (t *TaskService) GenerateTask(ctx context.Context, userId int64, topic, difficulty string) (*model.GeneratedTask, error) {
+func (t *TaskService) GenerateTask(ctx context.Context, userId int64, topic, difficulty string) (*model.Task, error) {
 	prompt := fmt.Sprintf(t.prompts.GenerateTask, topic, difficulty)
 	response, err := t.LLM.Complete(ctx, prompt)
 	if err != nil {
@@ -53,44 +56,67 @@ func (t *TaskService) GenerateTask(ctx context.Context, userId int64, topic, dif
 	var task *model.GeneratedTask
 	err = json.Unmarshal([]byte(response), &task)
 	if err == nil && task != nil {
-		task.Difficulty = difficulty
+		task.Difficulty = constants.DifficultyToInt(difficulty)
 		task.UserID = userId
-		task.Solved = false
+		task.Solved = 0
 		err = t.repo.CreateTask(ctx, task)
-		fmt.Println(task)
 		if err != nil {
 			return nil, fmt.Errorf("t.repo.CreateTask: %w", err)
 		}
 	}
-	return task, nil
+	return task.ToServer(), nil
 }
 
-type EvaluateCodeResponse struct {
-	Feedback string `json:"feedback"`
-}
+func (t *TaskService) EvaluateCodeForTask(ctx context.Context, userId int64, task, code string) (*model.Feedback, error) {
+	fullTask, err := t.repo.GetTask(ctx, userId, task)
+	if err != nil {
+		return nil, fmt.Errorf("t.repo.GetTask: %w", err)
+	}
+	stats, err := t.statsRepo.GetStatisticsData(ctx, userId)
+	if err != nil {
+		return nil, fmt.Errorf("t.statsRepo.GetStatisticsData: %w", err)
+	}
 
-type Question struct {
-	Request  string `json:"question"`
-	Verdict  string `json:"correct"`
-	Feedback string `json:"feedback"`
-}
+	taskJSON, err := json.MarshalIndent(fullTask, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal task: %w", err)
+	}
 
-func (t *TaskService) EvaluateCodeForTask(ctx context.Context, task, code string) (*Question, error) {
-	prompt := fmt.Sprintf(t.prompts.CheckCodeForTask, task, code)
+	prompt := fmt.Sprintf(t.prompts.CheckCodeForTask, string(taskJSON), code)
 
 	response, err := t.LLM.Complete(ctx, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("t.LLM.Complete: %w", err)
 	}
 
-	var feedback *Question
+	feedback := &model.Question{}
+	feedback.Task = task
+	feedback.Code = code
 	err = json.Unmarshal([]byte(response), &feedback)
-	if err == nil {
+	if err != nil {
+		return nil, fmt.Errorf("t.LLM.Complete: %w", err)
 	}
 
-	fmt.Println(feedback)
-
-	return feedback, nil
+	if !feedback.Request {
+		if feedback.Verdict {
+			fullTask.Solved++
+			switch fullTask.Difficulty {
+			case constants.Easy:
+				stats.Easy++
+			case constants.Medium:
+				stats.Medium++
+			case constants.Hard:
+				stats.Hard++
+			default:
+			}
+			stats.Total++
+			err = t.repo.UpdateTaskSolved(ctx, fullTask, stats)
+			if err != nil {
+				return nil, fmt.Errorf("t.repo.UpdateTaskSolved: %w", err)
+			}
+		}
+	}
+	return feedback.ToFeedback(), nil
 }
 
 func (t *TaskService) GetStatistics(ctx context.Context, userId int64) (*model.Statistics, error) {

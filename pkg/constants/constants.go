@@ -7,6 +7,12 @@ const (
 	Admin = iota + 1
 	User
 
+	// Difficulty
+
+	Easy = iota - 1
+	Medium
+	Hard
+
 	//  Handler Constants
 	//  ----------------------------------------------------------------
 
@@ -36,3 +42,29 @@ const (
 	Update = "update"
 	Delete = "delete"
 )
+
+func DifficultyToInt(difficulty string) int32 {
+	switch difficulty {
+	case "easy":
+		return Easy
+	case "medium":
+		return Medium
+	case "hard":
+		return Hard
+	default:
+		return 0
+	}
+}
+
+func DifficultyToString(difficulty int32) string {
+	switch difficulty {
+	case Easy:
+		return "easy"
+	case Medium:
+		return "medium"
+	case Hard:
+		return "hard"
+	default:
+		return ""
+	}
+}

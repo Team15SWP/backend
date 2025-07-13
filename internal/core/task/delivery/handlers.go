@@ -71,7 +71,13 @@ func (h *Handler) EvaluateCodeForTask(g *gin.Context) {
 		return
 	}
 
-	response, err := h.service.EvaluateCodeForTask(g.Request.Context(), request.Task, request.Code)
+	userId, ok := g.Get(constants.UserID)
+	if !ok {
+		_ = g.Error(fmt.Errorf("user not found"))
+		return
+	}
+
+	response, err := h.service.EvaluateCodeForTask(g.Request.Context(), userId.(int64), request.Task, request.Code)
 
 	if err != nil {
 		_ = g.Error(fmt.Errorf("h.service.EvaluateCodeForTask: %w", err))
