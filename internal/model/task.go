@@ -31,6 +31,9 @@ type Task struct {
 }
 
 func (g *GeneratedTask) ToServer() *Task {
+	if g == nil {
+		return nil
+	}
 	return &Task{
 		ID:               g.ID,
 		TaskName:         g.TaskName,
@@ -65,6 +68,9 @@ type Feedback struct {
 }
 
 func (q *Question) ToFeedback() *Feedback {
+	if q == nil {
+		return nil
+	}
 	return &Feedback{
 		Feedback: q.Feedback,
 	}
