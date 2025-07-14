@@ -28,8 +28,8 @@ func NewAuthService(repo UserProvider, hashConfig *config.HashConfig) *AuthServi
 }
 
 type Service interface {
-	LogIn(ctx context.Context, email, password string) (string, error)
-	SignUp(ctx context.Context, username, email, password string) (string, error)
+	LogIn(ctx context.Context, email, password string) (*model.AuthToken, error)
+	SignUp(ctx context.Context, username, email, password string) (*model.AuthToken, error)
 }
 
 type UserProvider interface {
@@ -37,45 +37,45 @@ type UserProvider interface {
 	CreateUser(ctx context.Context, username, email, password string) (*model.UserData, error)
 }
 
-func (a AuthService) LogIn(ctx context.Context, username, password string) (string, error) {
+func (a AuthService) LogIn(ctx context.Context, username, password string) (*model.AuthToken, error) {
 	user, err := a.repo.GetUserByEmailOrUsername(ctx, username)
 	if err != nil {
-		return "", fmt.Errorf("[authService][LogIn][GetUserByEmailOrUsername]: %w", err)
+		return nil, fmt.Errorf("[authService][LogIn][GetUserByEmailOrUsername]: %w", err)
 	}
 	if !hash.ComparePassword(password, user.Password) {
-		return "", fmt.Errorf("[authService][LogIn][ComparePassword]: %w", errlist.ErrPasswordIsIncorrect)
+		return nil, fmt.Errorf("[authService][LogIn][ComparePassword]: %w", errlist.ErrPasswordIsIncorrect)
 	}
 
 	tokenString, err := signToken(user, a.hashConfig.SigningKey)
 	if err != nil {
-		return "", fmt.Errorf("[authService][LogIn][SignToken]: %w", err)
+		return nil, fmt.Errorf("[authService][LogIn][SignToken]: %w", err)
 	}
-	return tokenString, nil
+	return model.NewAuthToken(tokenString, user.Role), nil
 }
 
-func (a AuthService) SignUp(ctx context.Context, username, email, password string) (string, error) {
+func (a AuthService) SignUp(ctx context.Context, username, email, password string) (*model.AuthToken, error) {
 	if _, err := a.repo.GetUserByEmailOrUsername(ctx, username); err == nil {
-		return "", fmt.Errorf("[authService][SignUp][GetUserByEmailOrUsername]: %w", errlist.ErrUserExists)
+		return nil, fmt.Errorf("[authService][SignUp][GetUserByEmailOrUsername]: %w", errlist.ErrUserExists)
 	}
 	if _, err := a.repo.GetUserByEmailOrUsername(ctx, email); err == nil {
-		return "", fmt.Errorf("[authService][SignUp][GetUserByEmailOrUsername]: %w", errlist.ErrUserExists)
+		return nil, fmt.Errorf("[authService][SignUp][GetUserByEmailOrUsername]: %w", errlist.ErrUserExists)
 	}
 
 	hashedPassword, err := hash.HashPassword(password)
 	if err != nil {
-		return "", fmt.Errorf("[authService][SignUp][HashPassword]: %w", err)
+		return nil, fmt.Errorf("[authService][SignUp][HashPassword]: %w", err)
 	}
 
 	user, err := a.repo.CreateUser(ctx, username, email, hashedPassword)
 	if err != nil {
-		return "", fmt.Errorf("[authService][SignUp][CreateUser]: %w", err)
+		return nil, fmt.Errorf("[authService][SignUp][CreateUser]: %w", err)
 	}
 
 	tokenString, err := signToken(user, a.hashConfig.SigningKey)
 	if err != nil {
-		return "", fmt.Errorf("[authService][SignUp][SignToken]: %w", err)
+		return nil, fmt.Errorf("[authService][SignUp][SignToken]: %w", err)
 	}
-	return tokenString, nil
+	return model.NewAuthToken(tokenString, user.Role), nil
 }
 
 func signToken(user *model.UserData, signingKey string) (string, error) {

@@ -49,11 +49,9 @@ func (h *Handler) LogIn(g *gin.Context) {
 		return
 	}
 
-	utils.SetAuthorizationToken(g, token)
+	utils.SetAuthorizationToken(g, token.Token)
 
-	g.JSON(http.StatusOK, map[string]interface{}{
-		"token": token,
-	})
+	g.JSON(http.StatusOK, token)
 }
 
 type SignUpRequest struct {
@@ -71,6 +69,8 @@ func (h *Handler) SignUp(g *gin.Context) {
 		return
 	}
 
+	fmt.Println(request)
+
 	token, err := h.service.SignUp(g.Request.Context(), request.Username, request.Email, request.Password)
 
 	if err != nil {
@@ -78,9 +78,7 @@ func (h *Handler) SignUp(g *gin.Context) {
 		return
 	}
 
-	utils.SetAuthorizationToken(g, token)
+	utils.SetAuthorizationToken(g, token.Token)
 
-	g.JSON(http.StatusOK, map[string]interface{}{
-		"token": token,
-	})
+	g.JSON(http.StatusOK, token)
 }
