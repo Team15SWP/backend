@@ -7,11 +7,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"study_buddy/internal/config"
 	notifyRepo "study_buddy/internal/core/notifier/repository"
 	notifyUseCase "study_buddy/internal/core/notifier/service"
 	"study_buddy/internal/db"
+
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -40,9 +43,32 @@ func main() {
 
 	notifyRepository := notifyRepo.NewNotifyRepo(pgPool)
 	notifyService := notifyUseCase.NewNotifyService(notifyRepository, log, cfg)
-	err = notifyService.NotifyUsers(ctx)
-	if err != nil {
-		log.Error(fmt.Sprintf("notifyService.NotifyUsers: %v", err))
+	run(ctx, notifyService, log)
+}
+
+func run(ctx context.Context, service *notifyUseCase.NotifyService, log *slog.Logger) {
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+
+		_ = service.NotifyUsers(gCtx, time.Now())
+
+		for {
+			select {
+			case <-gCtx.Done():
+				log.Info("stopping notification service")
+				return gCtx.Err()
+			case <-ticker.C:
+				if err := service.NotifyUsers(gCtx, time.Now()); err != nil {
+					log.Error(fmt.Sprintf("notifyService.NotifyUsers: %v", err))
+				}
+			}
+		}
+	})
+
+	if err := g.Wait(); err != nil {
+		slog.Info(fmt.Sprintf("exit reason: %s", err))
 	}
 }
 

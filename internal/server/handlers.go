@@ -17,7 +17,7 @@ func (s *Server) setupMiddlewares() {
 }
 
 func (s *Server) mapHandlers() {
-	authService := authUseCase.NewAuthService(s.repoLayer.authRepo, &s.cfg.HashConfig)
+	authService := authUseCase.NewAuthService(s.repoLayer.authRepo, s.repoLayer.notificationRepo, &s.cfg.HashConfig)
 	authHandlers := authDelivery.NewAuthHandler(authService)
 	authDelivery.MapAuthRoutes(s.router, authHandlers)
 
@@ -29,7 +29,7 @@ func (s *Server) mapHandlers() {
 
 	llmClient := llm.NewOpenRouterClient(&s.cfg.OpenAI)
 
-	taskService := taskUseCase.NewTaskService(s.repoLayer.taskRepo, s.repoLayer.statsRepo, llmClient, &s.cfg.OpenAI, &s.cfg.Prompts)
+	taskService := taskUseCase.NewTaskService(s.repoLayer.taskRepo, s.repoLayer.statsRepo, s.repoLayer.notificationRepo, llmClient, &s.cfg.OpenAI, &s.cfg.Prompts)
 	taskHandlers := taskDelivery.NewTaskHandler(taskService)
 	taskDelivery.MapTaskRoutes(s.router, taskHandlers, authMiddleware)
 }

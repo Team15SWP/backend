@@ -17,14 +17,16 @@ type Client interface {
 }
 
 type OpenRouterClient struct {
-	APIKey string
-	OpenAi *config.OpenAI
+	APIKey     string
+	OpenAi     *config.OpenAI
+	DisabledAt []*time.Time
 }
 
 func NewOpenRouterClient(openAi *config.OpenAI) *OpenRouterClient {
 	return &OpenRouterClient{
-		APIKey: openAi.ApiKeys[openAi.Ind],
-		OpenAi: openAi,
+		APIKey:     openAi.ApiKeys[openAi.Ind],
+		OpenAi:     openAi,
+		DisabledAt: make([]*time.Time, len(openAi.ApiKeys), len(openAi.ApiKeys)),
 	}
 }
 
@@ -46,7 +48,12 @@ func (c *OpenRouterClient) Complete(ctx context.Context, prompt string) (string,
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	c.APIKey, err = c.NextValidKey()
+	if err != nil {
+		return "", fmt.Errorf("c.NextValidKey: %w", err)
+	}
+
+	client := &http.Client{Timeout: 90 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -59,6 +66,7 @@ func (c *OpenRouterClient) Complete(ctx context.Context, prompt string) (string,
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		c.InvalidKey()
 		return "", fmt.Errorf("llm error: %s", string(bodyBytes))
 	}
 
@@ -78,8 +86,21 @@ func (c *OpenRouterClient) Complete(ctx context.Context, prompt string) (string,
 		return "", fmt.Errorf("llm response had no choices")
 	}
 
-	c.OpenAi.Ind = (c.OpenAi.Ind + 1) % int32(len(c.OpenAi.ApiKeys))
-	c.APIKey = c.OpenAi.ApiKeys[c.OpenAi.Ind]
-
 	return result.Choices[0].Message.Content, nil
+}
+
+func (c *OpenRouterClient) NextValidKey() (string, error) {
+	for i := 0; i < len(c.DisabledAt); i++ {
+		c.OpenAi.Ind = (c.OpenAi.Ind + 1) % int32(len(c.OpenAi.ApiKeys))
+		if c.DisabledAt[c.OpenAi.Ind] == nil || time.Since(*c.DisabledAt[c.OpenAi.Ind]) > 24*time.Hour {
+			c.DisabledAt[c.OpenAi.Ind] = nil
+			return c.OpenAi.ApiKeys[c.OpenAi.Ind], nil
+		}
+	}
+	return "", fmt.Errorf("no valid key")
+}
+
+func (c *OpenRouterClient) InvalidKey() {
+	tt := time.Now()
+	c.DisabledAt[c.OpenAi.Ind] = &tt
 }

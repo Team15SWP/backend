@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"study_buddy/internal/config"
 	"study_buddy/internal/model"
@@ -14,20 +15,22 @@ import (
 var _ Service = (*TaskService)(nil)
 
 type TaskService struct {
-	repo      TaskProvider
-	statsRepo StatsProvider
-	openAi    *config.OpenAI
-	prompts   *config.Prompts
-	LLM       llm.Client
+	repo             TaskProvider
+	statsRepo        StatsProvider
+	notificationRepo NotificationProvider
+	openAi           *config.OpenAI
+	prompts          *config.Prompts
+	LLM              llm.Client
 }
 
-func NewTaskService(repo TaskProvider, statsRepo StatsProvider, llmClient llm.Client, openAi *config.OpenAI, prompts *config.Prompts) *TaskService {
+func NewTaskService(repo TaskProvider, statsRepo StatsProvider, notificationRepo NotificationProvider, llmClient llm.Client, openAi *config.OpenAI, prompts *config.Prompts) *TaskService {
 	return &TaskService{
-		repo:      repo,
-		statsRepo: statsRepo,
-		openAi:    openAi,
-		prompts:   prompts,
-		LLM:       llmClient,
+		repo:             repo,
+		statsRepo:        statsRepo,
+		notificationRepo: notificationRepo,
+		openAi:           openAi,
+		prompts:          prompts,
+		LLM:              llmClient,
 	}
 }
 
@@ -35,6 +38,9 @@ type Service interface {
 	GenerateTask(ctx context.Context, userId int64, topic, difficulty string) (*model.Task, error)
 	EvaluateCodeForTask(ctx context.Context, userId int64, task, code string) (*model.Feedback, error)
 	GetStatistics(ctx context.Context, userId int64) (*model.Statistics, error)
+
+	GetNotificationSettings(ctx context.Context, userId int64) (*model.Notification, error)
+	SetNotificationSettings(ctx context.Context, notif *model.Notification) error
 }
 
 type TaskProvider interface {
@@ -45,6 +51,12 @@ type TaskProvider interface {
 
 type StatsProvider interface {
 	GetStatisticsData(ctx context.Context, userId int64) (*model.Statistics, error)
+}
+
+type NotificationProvider interface {
+	GetNotification(ctx context.Context, userId int64) (*model.Notification, error)
+	CreateNotification(ctx context.Context, notif *model.Notification) error
+	UpdateNotification(ctx context.Context, notif *model.Notification) error
 }
 
 func (t *TaskService) GenerateTask(ctx context.Context, userId int64, topic, difficulty string) (*model.Task, error) {
@@ -75,6 +87,12 @@ func (t *TaskService) EvaluateCodeForTask(ctx context.Context, userId int64, tas
 	stats, err := t.statsRepo.GetStatisticsData(ctx, userId)
 	if err != nil {
 		return nil, fmt.Errorf("t.statsRepo.GetStatisticsData: %w", err)
+	}
+
+	if strings.Contains(code, "show solution") {
+		return &model.Feedback{
+			Feedback: fullTask.Solution,
+		}, nil
 	}
 
 	taskJSON, err := json.MarshalIndent(fullTask, "", "  ")

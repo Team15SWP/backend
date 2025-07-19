@@ -11,19 +11,21 @@ import (
 )
 
 type repoLayer struct {
-	authRepo     authRepo.Repository
-	syllabusRepo syllabusRepo.Repository
-	taskRepo     taskRepo.TaskRepository
-	statsRepo    taskRepo.StatsRepository
-	trManager    *manager.Manager
+	authRepo         authRepo.Repository
+	syllabusRepo     syllabusRepo.Repository
+	taskRepo         taskRepo.TaskRepository
+	statsRepo        taskRepo.StatsRepository
+	notificationRepo taskRepo.NotificationRepository
+	trManager        *manager.Manager
 }
 
 func initRepoLayer(db *pgxpool.Pool) *repoLayer {
 	return &repoLayer{
-		authRepo:     authRepo.NewAuthRepo(db),
-		syllabusRepo: syllabusRepo.NewSyllabusRepo(db),
-		taskRepo:     taskRepo.NewTaskRepo(db),
-		statsRepo:    taskRepo.NewStatsRepo(db),
-		trManager:    manager.Must(trmpgx.NewDefaultFactory(db)),
+		authRepo:         authRepo.NewAuthRepo(db),
+		syllabusRepo:     syllabusRepo.NewSyllabusRepo(db),
+		taskRepo:         taskRepo.NewTaskRepo(db),
+		statsRepo:        taskRepo.NewStatsRepo(db),
+		notificationRepo: taskRepo.NewNotificationRepo(db),
+		trManager:        manager.Must(trmpgx.NewDefaultFactory(db)),
 	}
 }

@@ -12,4 +12,6 @@ func MapTaskRoutes(router *gin.Engine, h Handlers, authMiddleware gin.HandlerFun
 	router.POST("/evaluate_code", authMiddleware, middlewares.PermissionHandler(constants.TaskEntity, constants.Create), h.EvaluateCodeForTask)
 	router.POST("/submit_code", authMiddleware, middlewares.PermissionHandler(constants.TaskEntity, constants.Create), h.EvaluateCodeForTask)
 	router.GET("/get_stats", authMiddleware, middlewares.PermissionHandler(constants.TaskEntity, constants.Get), h.GetStatistics)
+	router.GET("/notification-settings", authMiddleware, middlewares.PermissionHandler(constants.TaskEntity, constants.Get), h.GetNotificationSettings)
+	router.POST("/notification-settings", authMiddleware, middlewares.PermissionHandler(constants.TaskEntity, constants.Get), h.SetNotificationSettings)
 }

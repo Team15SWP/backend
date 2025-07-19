@@ -27,6 +27,9 @@ type Handlers interface {
 	GenerateTask(g *gin.Context)
 	EvaluateCodeForTask(g *gin.Context)
 	GetStatistics(g *gin.Context)
+
+	GetNotificationSettings(g *gin.Context)
+	SetNotificationSettings(g *gin.Context)
 }
 
 type GenerateTaskRequest struct {

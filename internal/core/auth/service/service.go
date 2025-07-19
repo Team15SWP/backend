@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"study_buddy/internal/config"
 	"study_buddy/internal/model"
@@ -16,14 +17,16 @@ import (
 var _ Service = (*AuthService)(nil)
 
 type AuthService struct {
-	repo       UserProvider
-	hashConfig *config.HashConfig
+	repo             UserProvider
+	notificationRepo NotificationProvider
+	hashConfig       *config.HashConfig
 }
 
-func NewAuthService(repo UserProvider, hashConfig *config.HashConfig) *AuthService {
+func NewAuthService(repo UserProvider, notificationRepo NotificationProvider, hashConfig *config.HashConfig) *AuthService {
 	return &AuthService{
-		repo:       repo,
-		hashConfig: hashConfig,
+		repo:             repo,
+		notificationRepo: notificationRepo,
+		hashConfig:       hashConfig,
 	}
 }
 
@@ -35,6 +38,10 @@ type Service interface {
 type UserProvider interface {
 	GetUserByEmailOrUsername(ctx context.Context, username string) (*model.UserData, error)
 	CreateUser(ctx context.Context, username, email, password string) (*model.UserData, error)
+}
+
+type NotificationProvider interface {
+	CreateNotification(ctx context.Context, notif *model.Notification) error
 }
 
 func (a AuthService) LogIn(ctx context.Context, username, password string) (*model.AuthToken, error) {
@@ -69,6 +76,21 @@ func (a AuthService) SignUp(ctx context.Context, username, email, password strin
 	user, err := a.repo.CreateUser(ctx, username, email, hashedPassword)
 	if err != nil {
 		return nil, fmt.Errorf("[authService][SignUp][CreateUser]: %w", err)
+	}
+
+	tt, err := time.Parse("15:04", "00:00")
+	if err != nil {
+		return nil, fmt.Errorf("[authService][SignUp][ParseTime]: %w", err)
+	}
+
+	err = a.notificationRepo.CreateNotification(ctx, &model.Notification{
+		UserID:  user.ID,
+		Enabled: false,
+		Time24:  tt,
+		Days:    make([]int, 0, 7),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("[authService][SignUp][CreateNotification]: %w", err)
 	}
 
 	tokenString, err := signToken(user, a.hashConfig.SigningKey)

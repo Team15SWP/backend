@@ -28,6 +28,14 @@ CREATE TABLE statistics(
     total INT
 );
 
+CREATE TABLE notifications(
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    enabled BOOL,
+    time_24 TIMESTAMP,
+    days INT[]
+);
+
 -- +goose StatementEnd
 
 -- +goose Down
@@ -35,4 +43,5 @@ CREATE TABLE statistics(
 DROP TABLE syllabus;
 DROP TABLE tasks;
 DROP TABLE statistics;
+DROP TABLE notifications;
 -- +goose StatementEnd
