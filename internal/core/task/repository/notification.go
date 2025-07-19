@@ -66,7 +66,7 @@ func (s *NotificationRepo) CreateNotification(ctx context.Context, notif *model.
 		PlaceholderFormat(sq.Dollar).
 		Insert("notifications").
 		Columns("user_id", "enabled", "time_24", "days").
-		Values(notif.UserID, true, notif.Time24, notif.Days).
+		Values(notif.UserID, notif.Enabled, notif.Time24, notif.Days).
 		ToSql()
 	if err != nil {
 		return fmt.Errorf("build insert query: %w", err)
@@ -89,7 +89,7 @@ func (s *NotificationRepo) UpdateNotification(ctx context.Context, notif *model.
 	query, args, err := sq.StatementBuilder.
 		PlaceholderFormat(sq.Dollar).
 		Update("notifications").
-		Set("enabled", true).
+		Set("enabled", notif.Enabled).
 		Set("time_24", notif.Time24).
 		Set("days", notif.Days).
 		Where(sq.Eq{"user_id": notif.UserID}).
