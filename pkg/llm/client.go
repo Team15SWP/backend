@@ -10,9 +10,13 @@ import (
 	"time"
 
 	"study_buddy/internal/config"
+
+	"golang.org/x/time/rate"
 )
 
 const dailyQuota = 50
+
+var minuteLimiter = rate.NewLimiter(rate.Every(time.Minute/60), 60)
 
 type Client interface {
 	Complete(ctx context.Context, prompt string) (string, error)
@@ -35,6 +39,11 @@ func NewOpenRouterClient(openAi *config.OpenAI) *OpenRouterClient {
 }
 
 func (c *OpenRouterClient) Complete(ctx context.Context, prompt string) (string, error) {
+	err := minuteLimiter.Wait(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	body := map[string]interface{}{
 		"model": "deepseek/deepseek-r1-0528:free",
 		"messages": []map[string]string{
