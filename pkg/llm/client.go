@@ -12,6 +12,8 @@ import (
 	"study_buddy/internal/config"
 )
 
+const dailyQuota = 50
+
 type Client interface {
 	Complete(ctx context.Context, prompt string) (string, error)
 }
@@ -20,6 +22,7 @@ type OpenRouterClient struct {
 	APIKey     string
 	OpenAi     *config.OpenAI
 	DisabledAt []*time.Time
+	Count      []int
 }
 
 func NewOpenRouterClient(openAi *config.OpenAI) *OpenRouterClient {
@@ -27,6 +30,7 @@ func NewOpenRouterClient(openAi *config.OpenAI) *OpenRouterClient {
 		APIKey:     openAi.ApiKeys[openAi.Ind],
 		OpenAi:     openAi,
 		DisabledAt: make([]*time.Time, len(openAi.ApiKeys), len(openAi.ApiKeys)),
+		Count:      make([]int, len(openAi.ApiKeys), len(openAi.ApiKeys)),
 	}
 }
 
@@ -53,6 +57,7 @@ func (c *OpenRouterClient) Complete(ctx context.Context, prompt string) (string,
 		return "", fmt.Errorf("c.NextValidKey: %w", err)
 	}
 
+	c.Count[c.OpenAi.Ind]++
 	client := &http.Client{Timeout: 90 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -60,13 +65,16 @@ func (c *OpenRouterClient) Complete(ctx context.Context, prompt string) (string,
 	}
 	defer resp.Body.Close()
 
+	if c.Count[c.OpenAi.Ind] >= dailyQuota {
+		c.InvalidKey()
+	}
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		c.InvalidKey()
 		return "", fmt.Errorf("llm error: %s", string(bodyBytes))
 	}
 
