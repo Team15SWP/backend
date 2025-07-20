@@ -35,16 +35,16 @@ func NewNotifyService(repo NotifyProvider, log *slog.Logger, cfg *config.Config)
 }
 
 type Service interface {
-	NotifyUsers(ctx context.Context, now time.Time) error
+	NotifyUsers(ctx context.Context, now *time.Time) error
 	SendMessage(ctx context.Context, messageBody, toEmail, name string) error
 }
 
 type NotifyProvider interface {
 	GetAllUsersEmail(ctx context.Context, userIDs []int64) ([]*model.User, error)
-	GetUserIDs(ctx context.Context, now time.Time) ([]int64, error)
+	GetUserIDs(ctx context.Context, now *time.Time) ([]int64, error)
 }
 
-func (n *NotifyService) NotifyUsers(ctx context.Context, now time.Time) error {
+func (n *NotifyService) NotifyUsers(ctx context.Context, now *time.Time) error {
 	n.log.Info("NotifyUsers start")
 	userIDs, err := n.repo.GetUserIDs(ctx, now)
 	n.log.Info("userIDs", len(userIDs), userIDs)

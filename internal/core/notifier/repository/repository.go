@@ -25,7 +25,7 @@ func NewNotifyRepo(db *pgxpool.Pool) *NotifyRepo {
 
 type Repository interface {
 	GetAllUsersEmail(ctx context.Context, userIDs []int64) ([]*model.User, error)
-	GetUserIDs(ctx context.Context, now time.Time) ([]int64, error)
+	GetUserIDs(ctx context.Context, now *time.Time) ([]int64, error)
 }
 
 func (n *NotifyRepo) GetAllUsersEmail(ctx context.Context, userIDs []int64) ([]*model.User, error) {
@@ -74,7 +74,7 @@ type NotificationData struct {
 	Days   []int
 }
 
-func (n *NotifyRepo) GetUserIDs(ctx context.Context, now time.Time) ([]int64, error) {
+func (n *NotifyRepo) GetUserIDs(ctx context.Context, now *time.Time) ([]int64, error) {
 	pool, err := n.db.Acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -82,6 +82,9 @@ func (n *NotifyRepo) GetUserIDs(ctx context.Context, now time.Time) ([]int64, er
 	defer pool.Release()
 
 	day := int(now.Weekday())
+	if day == 0 {
+		day = 7
+	}
 
 	query, args, err := sq.StatementBuilder.
 		PlaceholderFormat(sq.Dollar).
@@ -106,7 +109,7 @@ func (n *NotifyRepo) GetUserIDs(ctx context.Context, now time.Time) ([]int64, er
 		if err = rows.Scan(&user.UserID, &user.Time, &user.Days); err != nil {
 			return nil, err
 		}
-		diff := HourDifferenceOnly(now, user.Time)
+		diff := HourDifferenceOnly(*now, user.Time)
 		fmt.Println(diff)
 		if contains(day, user.Days) && diff >= time.Duration(0) && diff < time.Minute {
 			users = append(users, user.UserID)

@@ -52,7 +52,8 @@ func run(ctx context.Context, service *notifyUseCase.NotifyService, log *slog.Lo
 		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 
-		_ = service.NotifyUsers(gCtx, time.Now())
+		now := time.Now()
+		_ = service.NotifyUsers(gCtx, &now)
 
 		for {
 			select {
@@ -60,7 +61,8 @@ func run(ctx context.Context, service *notifyUseCase.NotifyService, log *slog.Lo
 				log.Info("stopping notification service")
 				return gCtx.Err()
 			case <-ticker.C:
-				if err := service.NotifyUsers(gCtx, time.Now()); err != nil {
+				now = time.Now()
+				if err := service.NotifyUsers(gCtx, &now); err != nil {
 					log.Error(fmt.Sprintf("notifyService.NotifyUsers: %v", err))
 				}
 			}
