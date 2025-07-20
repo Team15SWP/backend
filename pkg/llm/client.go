@@ -37,7 +37,7 @@ func NewOpenRouterClient(openAi *config.OpenAI) *OpenRouterClient {
 func (c *OpenRouterClient) Complete(ctx context.Context, prompt string) (string, error) {
 
 	body := map[string]interface{}{
-		"model": "deepseek/deepseek-r1-0528:free",
+		"model": "mistralai/mistral-7b-instruct:free",
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
 		},
