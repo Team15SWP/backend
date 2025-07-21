@@ -27,6 +27,7 @@ func NewAuthHandler(service authUseCase.Service) *Handler {
 type Handlers interface {
 	LogIn(g *gin.Context)
 	SignUp(g *gin.Context)
+	Confirm(g *gin.Context)
 }
 
 type LogInRequest struct {
@@ -71,14 +72,28 @@ func (h *Handler) SignUp(g *gin.Context) {
 
 	fmt.Println(request)
 
-	token, err := h.service.SignUp(g.Request.Context(), request.Username, request.Email, request.Password)
+	message, err := h.service.SignUp(g.Request.Context(), request.Username, request.Email, request.Password)
 
 	if err != nil {
 		_ = g.Error(fmt.Errorf("h.service.SignUp: %w", err))
 		return
 	}
 
-	utils.SetAuthorizationToken(g, token.Token)
+	g.JSON(http.StatusOK, message)
+}
 
-	g.JSON(http.StatusOK, token)
+func (h *Handler) Confirm(g *gin.Context) {
+	tokenStr := g.Query("token")
+	if tokenStr == "" {
+		g.JSON(http.StatusBadRequest, gin.H{"error": "Missing token"})
+		return
+	}
+
+	err := h.service.Confirm(g.Request.Context(), tokenStr)
+	if err != nil {
+		_ = g.Error(fmt.Errorf("h.service.Confirm: %w", err))
+		return
+	}
+
+	g.Status(http.StatusOK)
 }

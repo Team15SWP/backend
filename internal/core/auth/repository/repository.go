@@ -31,9 +31,10 @@ func NewAuthRepo(db *pgxpool.Pool) *AuthRepo {
 type Repository interface {
 	GetUserByEmailOrUsername(ctx context.Context, username string) (*model.UserData, error)
 	CreateUser(ctx context.Context, username, email, password string) (*model.UserData, error)
+	UpdateUser(ctx context.Context, user *model.UserData) error
 }
 
-func (a AuthRepo) GetUserByEmailOrUsername(ctx context.Context, username string) (*model.UserData, error) {
+func (a *AuthRepo) GetUserByEmailOrUsername(ctx context.Context, username string) (*model.UserData, error) {
 	pool, err := a.db.Acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -43,7 +44,7 @@ func (a AuthRepo) GetUserByEmailOrUsername(ctx context.Context, username string)
 	query, args, err := sq.StatementBuilder.
 		PlaceholderFormat(sq.Dollar).
 		Select("id", "role", "name", "email", "password",
-			"created_at", "updated_at", "is_deleted").
+			"created_at", "updated_at", "is_confirmed").
 		From("users").
 		Where(
 			sq.Or{
@@ -59,7 +60,7 @@ func (a AuthRepo) GetUserByEmailOrUsername(ctx context.Context, username string)
 	var user model.UserData
 
 	err = row.Scan(&user.ID, &user.Role, &user.Name, &user.Email, &user.Password,
-		&user.CreatedAt, &user.UpdatedAt, &user.IsDeleted)
+		&user.CreatedAt, &user.UpdatedAt, &user.IsConfirmed)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errlist.ErrUserNotFound
 	}
@@ -69,7 +70,7 @@ func (a AuthRepo) GetUserByEmailOrUsername(ctx context.Context, username string)
 	return &user, nil
 }
 
-func (a AuthRepo) CreateUser(ctx context.Context, username, email, password string) (*model.UserData, error) {
+func (a *AuthRepo) CreateUser(ctx context.Context, username, email, password string) (*model.UserData, error) {
 	tx, err := a.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -83,7 +84,7 @@ func (a AuthRepo) CreateUser(ctx context.Context, username, email, password stri
 	}()
 
 	createdAt := time.Now()
-	userColumns := []string{"role", "name", "email", "password", "created_at", "updated_at", "is_deleted"}
+	userColumns := []string{"role", "name", "email", "password", "created_at", "updated_at", "is_confirmed"}
 
 	userQuery, userArgs, err := sq.Insert("users").
 		Columns(userColumns...).
@@ -98,7 +99,7 @@ func (a AuthRepo) CreateUser(ctx context.Context, username, email, password stri
 	user := new(model.UserData)
 	err = tx.QueryRow(ctx, userQuery, userArgs...).Scan(
 		&user.ID, &user.Role, &user.Name, &user.Email, &user.Password,
-		&user.CreatedAt, &user.UpdatedAt, &user.IsDeleted,
+		&user.CreatedAt, &user.UpdatedAt, &user.IsConfirmed,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("insert user: %w", err)
@@ -121,4 +122,29 @@ func (a AuthRepo) CreateUser(ctx context.Context, username, email, password stri
 	}
 
 	return user, nil
+}
+
+func (a *AuthRepo) UpdateUser(ctx context.Context, user *model.UserData) error {
+	pool, err := a.db.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("db acquire: %w", err)
+	}
+	defer pool.Release()
+
+	query, args, err := sq.StatementBuilder.
+		PlaceholderFormat(sq.Dollar).
+		Update("users").
+		Set("is_confirmed", user.IsConfirmed).
+		Set("updated_at", user.UpdatedAt).
+		Where(sq.Eq{"id": user.ID}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("build insert query: %w", err)
+	}
+
+	_, err = pool.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("exec insert: %w", err)
+	}
+	return nil
 }

@@ -16,6 +16,7 @@ var (
 	ErrUserNotFound        = errors.New("user not found")
 	ErrUserExists          = errors.New("user already exists")
 	ErrPasswordIsIncorrect = errors.New("password is incorrect")
+	ErrUserIsNotVerified   = errors.New("user has not been verified")
 
 	ErrNotAvailableSeats = errors.New("not available seats")
 )

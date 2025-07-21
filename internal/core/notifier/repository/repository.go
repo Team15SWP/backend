@@ -39,7 +39,7 @@ func (n *NotifyRepo) GetAllUsersEmail(ctx context.Context, userIDs []int64) ([]*
 		PlaceholderFormat(sq.Dollar).
 		Select("name", "email").
 		From("users").
-		Where(sq.Eq{"id": userIDs}).
+		Where(sq.Eq{"id": userIDs, "is_confirmed": true}).
 		OrderBy("id").
 		ToSql()
 	if err != nil {

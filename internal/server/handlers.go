@@ -17,7 +17,7 @@ func (s *Server) setupMiddlewares() {
 }
 
 func (s *Server) mapHandlers() {
-	authService := authUseCase.NewAuthService(s.repoLayer.authRepo, s.repoLayer.notificationRepo, &s.cfg.HashConfig)
+	authService := authUseCase.NewAuthService(s.repoLayer.authRepo, s.repoLayer.notificationRepo, s.cfg)
 	authHandlers := authDelivery.NewAuthHandler(authService)
 	authDelivery.MapAuthRoutes(s.router, authHandlers)
 

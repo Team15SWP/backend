@@ -27,6 +27,8 @@ const (
 	UserID = "user"
 	Name   = "name"
 	Email  = "email"
+	Type   = "type"
+	Exp    = "exp"
 
 	//  Entities
 	//  ----------------------------------------------------------------

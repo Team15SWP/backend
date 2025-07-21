@@ -42,7 +42,8 @@ func getStatusCode(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, errlist.ErrUnauthorized),
 		errors.Is(err, errlist.ErrUserNotFound),
-		errors.Is(err, errlist.ErrInvalidPassword):
+		errors.Is(err, errlist.ErrInvalidPassword),
+		errors.Is(err, errlist.ErrUserIsNotVerified):
 		return http.StatusUnauthorized
 	case errors.Is(err, errlist.ErrForbidden):
 		return http.StatusForbidden

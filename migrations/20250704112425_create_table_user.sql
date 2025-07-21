@@ -8,7 +8,7 @@ CREATE TABLE users (
     password TEXT,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
-    is_deleted BOOLEAN
+    is_confirmed BOOLEAN
 );
 -- +goose StatementEnd
 
