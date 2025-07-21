@@ -141,7 +141,7 @@ func generateConfirmationToken(userId int64, signingKey string) (string, error) 
 }
 
 func (a *AuthService) SendConfirmationMessage(toEmail string, token string) error {
-	link := fmt.Sprintf("http://uchipython.duckdns.org//confirm?token=%s", token)
+	link := fmt.Sprintf("http://uchipython.duckdns.org/confirm?token=%s", token)
 	messageBody := fmt.Sprintf(`
 Click the link to confirm your account:
 %s
